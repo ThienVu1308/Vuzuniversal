@@ -1,0 +1,438 @@
+-- WindUI rewrite of the Unstability || Universal script (was Orion)
+
+local player = game.Players.LocalPlayer
+local mouse = player:GetMouse()
+
+-- remove anti/afk localscripts the game might inject
+do
+    local scriptsFolder = player:FindFirstChild("PlayerScripts")
+    if scriptsFolder then
+        for _, name in ipairs({ "AFK", "Anti", "AE" }) do
+            local inst = scriptsFolder:FindFirstChild(name)
+            if inst then
+                inst:Destroy()
+            end
+        end
+    end
+end
+
+-- load WindUI
+local WindUI
+do
+    local ok, result = pcall(function()
+        return require("./src/Init")
+    end)
+    if ok then
+        WindUI = result
+    else
+        WindUI = loadstring(game:HttpGet("https://raw.githubusercontent.com/Footagesus/WindUI/main/dist/main.lua"))()
+    end
+end
+
+-- icons used in tabs/elements
+WindUI.Creator.AddIcons("solar", {
+    ["CheckSquareBold"] = "rbxassetid://132438947521974",
+    ["CursorSquareBold"] = "rbxassetid://120306472146156",
+    ["FolderWithFilesBold"] = "rbxassetid://74631950400584",
+    ["HamburgerMenuBold"] = "rbxassetid://134384554225463",
+    ["Home2Bold"] = "rbxassetid://92190299966310",
+    ["SolarSquareTransferHorizontalBold"] = "rbxassetid://125444491429160",
+})
+
+local Purple = Color3.fromHex("#7775F2")
+local Yellow = Color3.fromHex("#ECA201")
+local Green = Color3.fromHex("#10C550")
+local Grey = Color3.fromHex("#83889E")
+local Blue = Color3.fromHex("#257AF7")
+local Red = Color3.fromHex("#EF4F1D")
+
+-- window
+local Window = WindUI:CreateWindow({
+    Title = "Vuzez || Universal",
+    Folder = "Vuzez",
+    IconSize = 44,
+    NewElements = true,
+    HideSearchBar = false,
+    OpenButton = {
+        Title = "Open Unstability UI",
+        CornerRadius = UDim.new(1, 0),
+        StrokeThickness = 3,
+        Enabled = true,
+        Draggable = true,
+        OnlyMobile = false,
+        Color = ColorSequence.new(Color3.fromHex("#000000"), Color3.fromHex("#20201f")),
+    },
+    Topbar = {
+        Height = 44,
+        ButtonsType = "Mac",
+    },
+})
+
+-- state
+local keepSpeed = false
+local targetWalkspeed = 20
+local keepJump = false
+local targetJump = 50
+local godmode = false
+local npcKill = false
+local noCdLite = false
+local tToTP = false
+local noCooldownHooked = false
+
+local function notify(title, content)
+    WindUI:Notify({
+        Title = title,
+        Content = content,
+    })
+end
+
+-- Home tab
+local HomeTab = Window:Tab({
+    Title = "Home",
+    Icon = "solar:Home2Bold",
+    IconColor = Grey,
+    IconShape = "Square",
+})
+
+HomeTab:Section({
+    Title = "Script made by ThienVuzx",
+    TextSize = 16,
+})
+
+HomeTab:Space()
+
+HomeTab:Button({
+    Title = "Infinite Yield",
+    Icon = "solar:FolderWithFilesBold",
+    Callback = function()
+        loadstring(game:HttpGet("https://raw.githubusercontent.com/EdgeIY/infiniteyield/master/source", true))()
+    end,
+})
+
+HomeTab:Space()
+
+HomeTab:Button({
+    Title = "Self Destruct",
+    Color = Red,
+    Icon = "solar:CursorSquareBold",
+    Callback = function()
+        Window:Destroy()
+    end,
+})
+
+-- Main tab
+local MainTab = Window:Tab({
+    Title = "Main",
+    Icon = "solar:CursorSquareBold",
+    IconColor = Blue,
+    IconShape = "Square",
+})
+
+MainTab:Toggle({
+    Title = "NPC Kill",
+    Desc = "Kills all humanoids except you",
+    Callback = function(value)
+        npcKill = value
+        task.spawn(function()
+            while npcKill do
+                task.wait(0.5)
+                pcall(function()
+                    sethiddenproperty(player, "SimulationRadius", 112412400000)
+                    sethiddenproperty(player, "MaxSimulationRadius", 112412400000)
+                    for _, inst in ipairs(workspace:GetDescendants()) do
+                        if inst.ClassName == "Humanoid" and inst.Parent.Name ~= player.Name then
+                            inst.Health = 0
+                        end
+                    end
+                end)
+            end
+        end)
+    end,
+})
+
+MainTab:Space()
+
+MainTab:Button({
+    Title = "No Cooldown",
+    Desc = "Hooks wait() to instant return (unsafe)",
+    Icon = "solar:SolarSquareTransferHorizontalBold",
+    Callback = function()
+        if noCooldownHooked then
+            notify("No Cooldown", "Already active")
+            return
+        end
+        local originalWait
+        originalWait = hookfunction(wait, function(...)
+            return originalWait(0)
+        end)
+        noCooldownHooked = true
+        notify("No Cooldown", "wait() hook applied")
+    end,
+})
+
+MainTab:Space()
+
+MainTab:Toggle({
+    Title = "No Cd Lite",
+    Desc = "Sets cooldown values to 0",
+    Callback = function(value)
+        noCdLite = value
+        task.spawn(function()
+            while noCdLite do
+                task.wait(1)
+                for _, v in ipairs(player:GetDescendants()) do
+                    if (v:IsA("NumberValue") or v:IsA("IntValue")) and v.Name == "cooldown" then
+                        v.Value = 0
+                    end
+                end
+            end
+        end)
+    end,
+})
+
+MainTab:Space()
+
+MainTab:Button({
+    Title = "Mini Spam Tool",
+    Icon = "solar:HamburgerMenuBold",
+    Callback = function()
+        local tool = Instance.new("Tool")
+        tool.RequiresHandle = false
+        tool.Name = "Mini Spam Tool"
+        tool.ToolTip = "weaker yet still deadly"
+        tool.CanBeDropped = false
+        tool.Activated:Connect(function()
+            local hit = mouse.Hit + Vector3.new(0, 0, 0)
+            for _, descendant in ipairs(game:GetDescendants()) do
+                if descendant:IsA("Tool") and descendant:FindFirstChild("RemoteEvent") then
+                    if descendant.Name ~= "fc" then
+                        descendant.RemoteEvent:FireServer(hit.X, hit.Y, hit.Z)
+                    end
+                end
+            end
+        end)
+        tool.Parent = player.Backpack
+    end,
+})
+
+MainTab:Space()
+
+MainTab:Button({
+    Title = "Spam Tool",
+    Icon = "solar:HamburgerMenuBold",
+    Callback = function()
+        local tool = Instance.new("Tool")
+        tool.RequiresHandle = false
+        tool.Name = "Spam Tool"
+        tool.ToolTip = "fire a bunch of attacks"
+        tool.CanBeDropped = false
+        tool.Activated:Connect(function()
+            local hit = mouse.Hit + Vector3.new(0, 2.5, 0)
+            for _, ev in ipairs(game:GetDescendants()) do
+                if ev:IsA("RemoteEvent") and not (ev:IsDescendantOf(game:GetService("CorePackages")) or ev:IsDescendantOf(game:GetService("RobloxReplicatedStorage"))) then
+                    ev:FireServer(hit.X, hit.Y, hit.Z)
+                end
+            end
+        end)
+        tool.Parent = player.Backpack
+    end,
+})
+
+MainTab:Space()
+
+MainTab:Toggle({
+    Title = "GodMode",
+    Desc = "Disables CanTouch while on",
+    Callback = function(value)
+        godmode = value
+        if value then
+            task.spawn(function()
+                while godmode do
+                    for _, part in ipairs(workspace:GetChildren()) do
+                        if part.Name == player.Name then
+                            for _, child in ipairs(part:GetChildren()) do
+                                if child:IsA("BasePart") then
+                                    child.CanTouch = false
+                                end
+                            end
+                        end
+                    end
+                    task.wait()
+                end
+            end)
+        else
+            task.delay(1.5, function()
+                if player.Character then
+                    for _, child in ipairs(player.Character:GetChildren()) do
+                        if child:IsA("BasePart") then
+                            child.CanTouch = true
+                        end
+                    end
+                end
+            end)
+        end
+    end,
+})
+
+-- Player tab
+local PlayerTab = Window:Tab({
+    Title = "Player",
+    Icon = "solar:CheckSquareBold",
+    IconColor = Purple,
+    IconShape = "Square",
+})
+
+PlayerTab:Slider({
+    Title = "Speed",
+    Desc = "Walkspeed",
+    Color = Red,
+    Step = 1,
+    Value = {
+        Min = 20,
+        Max = 700,
+        Default = 20,
+    },
+    Callback = function(value)
+        targetWalkspeed = value
+        if player.Character and player.Character:FindFirstChild("Humanoid") then
+            player.Character.Humanoid.WalkSpeed = value
+        end
+    end,
+})
+
+PlayerTab:Toggle({
+    Title = "Keep Speed",
+    Callback = function(value)
+        keepSpeed = value
+        task.spawn(function()
+            while keepSpeed do
+                if player.Character and player.Character:FindFirstChild("Humanoid") and player.Character.Humanoid.WalkSpeed ~= targetWalkspeed then
+                    player.Character.Humanoid.WalkSpeed = targetWalkspeed
+                end
+                task.wait()
+            end
+        end)
+    end,
+})
+
+PlayerTab:Space()
+
+PlayerTab:Slider({
+    Title = "Jumppower",
+    Color = Blue,
+    Step = 1,
+    Value = {
+        Min = 50,
+        Max = 700,
+        Default = 50,
+    },
+    Callback = function(value)
+        targetJump = value
+        if player.Character and player.Character:FindFirstChild("Humanoid") then
+            player.Character.Humanoid.JumpPower = value
+        end
+    end,
+})
+
+PlayerTab:Toggle({
+    Title = "Keep Jumppower",
+    Callback = function(value)
+        keepJump = value
+        task.spawn(function()
+            while keepJump do
+                if player.Character and player.Character:FindFirstChild("Humanoid") and player.Character.Humanoid.JumpPower ~= targetJump then
+                    player.Character.Humanoid.JumpPower = targetJump
+                end
+                task.wait()
+            end
+        end)
+    end,
+})
+
+PlayerTab:Space()
+
+PlayerTab:Button({
+    Title = "TP Tool",
+    Icon = "solar:HamburgerMenuBold",
+    Callback = function()
+        local tpTool = Instance.new("Tool")
+        tpTool.RequiresHandle = false
+        tpTool.Name = "Click Teleport"
+        tpTool.ToolTip = "Teleports you to where you click."
+        tpTool.CanBeDropped = false
+        tpTool.Activated:Connect(function()
+            local pos = mouse.Hit + Vector3.new(0, 3, 0)
+            local cf = CFrame.new(pos.X, pos.Y, pos.Z, select(4, player.Character.HumanoidRootPart.CFrame:components()))
+            player.Character.HumanoidRootPart.CFrame = cf
+            local sound = Instance.new("Sound")
+            sound.Name = "tpsfx"
+            sound.Volume = 4
+            sound.Parent = player.PlayerGui
+            sound.SoundId = "rbxassetid://5124453445"
+            sound.TimePosition = 0
+            sound.Playing = true
+            task.wait(1)
+            sound:Destroy()
+        end)
+        tpTool.Parent = player.Backpack
+    end,
+})
+
+PlayerTab:Toggle({
+    Title = "T To TP",
+    Callback = function(value)
+        tToTP = value
+    end,
+})
+
+game:GetService("UserInputService").InputBegan:Connect(function(input, processed)
+    if processed then
+        return
+    end
+    if input.KeyCode == Enum.KeyCode.T and tToTP then
+        local pos = mouse.Hit + Vector3.new(0, 3, 0)
+        local cf = CFrame.new(pos.X, pos.Y, pos.Z, select(4, player.Character.HumanoidRootPart.CFrame:components()))
+        player.Character.HumanoidRootPart.CFrame = cf
+        local sound = Instance.new("Sound")
+        sound.Name = "tpsfx"
+        sound.Volume = 4
+        sound.Parent = player.PlayerGui
+        sound.SoundId = "rbxassetid://5124453445"
+        sound.TimePosition = 0
+        sound.Playing = true
+        task.wait(1)
+        sound:Destroy()
+    end
+end)
+
+PlayerTab:Space()
+
+PlayerTab:Button({
+    Title = "Hide Username",
+    Icon = "solar:CheckSquareBold",
+    Callback = function()
+        if player.Character then
+            for _, inst in ipairs(player.Character:GetDescendants()) do
+                if (inst:IsA("TextLabel") or inst:IsA("TextButton")) and inst.Text == player.Name then
+                    inst.Text = ""
+                end
+            end
+        end
+    end,
+})
+
+-- keep CanTouch off while godmode is enabled
+task.spawn(function()
+    while true do
+        if godmode and player.Character then
+            for _, part in ipairs(player.Character:GetChildren()) do
+                if part:IsA("BasePart") then
+                    part.CanTouch = false
+                end
+            end
+        end
+        task.wait(1)
+    end
+end)
+
+Window:SelectTab(HomeTab)
