@@ -29,23 +29,123 @@ do
     end
 end
 
+-- compatibility: add dummy :Connect on RBXScriptConnection to avoid crashes in third-party modules
+do
+    local tmp = game:GetService("RunService").Heartbeat:Connect(function() end)
+    local mt = getmetatable(tmp)
+    tmp:Disconnect()
+    if mt and mt.__index then
+        local oldIndex = mt.__index
+        pcall(function()
+            setreadonly(mt, false)
+            mt.__index = function(self, key)
+                if key == "Connect" or key == "connect" then
+                    return function(_, _cb)
+                        -- if a script tries to :Connect on a connection, just return the connection itself
+                        return self
+                    end
+                end
+                return oldIndex(self, key)
+            end
+            setreadonly(mt, true)
+        end)
+    end
+end
+
 -- tween safety: coerce NumberSequence properties when goals use plain numbers
+local function coerceGoals(instance, goals)
+    local fixed = {}
+    for prop, value in pairs(goals or {}) do
+        local current = instance and instance[prop]
+        if typeof(current) == "NumberSequence" and type(value) == "number" then
+            fixed[prop] = NumberSequence.new(value)
+        else
+            fixed[prop] = value
+        end
+    end
+    return fixed
+end
+
 do
     local TweenService = game:GetService("TweenService")
-    local originalTweenCreate = TweenService.Create
+    local rawCreate
+
+    local function forceNumberSequences(goals)
+        local fixed = {}
+        for prop, value in pairs(goals or {}) do
+            if type(value) == "number" then
+                fixed[prop] = NumberSequence.new(value)
+            else
+                fixed[prop] = value
+            end
+        end
+        return fixed
+    end
+
+    local function createSafe(self, instance, tweenInfo, goals)
+        rawCreate = rawCreate or TweenService.Create
+        local ok, result = pcall(rawCreate, self, instance, tweenInfo, coerceGoals(instance, goals))
+        if ok then
+            return result
+        end
+        local ok2, result2 = pcall(rawCreate, self, instance, tweenInfo, forceNumberSequences(goals))
+        if ok2 then
+            return result2
+        end
+        warn("[TweenSafe] suppressed Tween error:", result, result2)
+        return {
+            Play = function() end,
+            Pause = function() end,
+            Cancel = function() end,
+        }
+    end
+
+    -- direct override (covers cached references to the function itself)
     pcall(function()
-        hookfunction(TweenService.Create, function(self, instance, tweenInfo, goals)
-            local fixed = {}
-            for prop, value in pairs(goals) do
-                local current = instance and instance[prop]
-                if typeof(current) == "NumberSequence" and type(value) == "number" then
-                    fixed[prop] = NumberSequence.new(value)
-                else
-                    fixed[prop] = value
+        rawCreate = rawCreate or TweenService.Create
+        TweenService.Create = function(self, instance, tweenInfo, goals)
+            return createSafe(self, instance, tweenInfo, goals)
+        end
+    end)
+
+    -- hookfunction fallback (if available)
+    pcall(function()
+        rawCreate = rawCreate or TweenService.Create
+        rawCreate = hookfunction(rawCreate, function(self, instance, tweenInfo, goals)
+            return createSafe(self, instance, tweenInfo, goals)
+        end)
+    end)
+
+    -- namecall hook (colon syntax)
+    pcall(function()
+        local old
+        old = hookmetamethod(game, "__namecall", function(self, ...)
+            local method = (getnamecallmethod and getnamecallmethod()) or ""
+            if self == TweenService and method == "Create" then
+                local instance, tweenInfo, goals = ...
+                return TweenService.Create(self, instance, tweenInfo, goals)
+            end
+            return old(self, ...)
+        end)
+    end)
+
+    -- metatable __index fallback
+    pcall(function()
+        local mt = getrawmetatable(TweenService)
+        if not mt then
+            return
+        end
+        local oldIndex = mt.__index
+        setreadonly(mt, false)
+        mt.__index = function(self, key)
+            if key == "Create" then
+                return function(_, instance, tweenInfo, goals)
+                    return createSafe(self, instance, tweenInfo, goals)
                 end
             end
-            return originalTweenCreate(self, instance, tweenInfo, fixed)
-        end)
+            return oldIndex(self, key)
+        end
+        setreadonly(mt, true)
     end)
 end
 
