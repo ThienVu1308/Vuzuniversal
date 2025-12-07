@@ -1,4 +1,4 @@
--- WindUI rewrite of the Unstability || Universal script (was Orion)
+-- WindUI rewrite of the Vuzez || Universal script (was Orion)
 
 local player = game.Players.LocalPlayer
 local mouse = player:GetMouse()
