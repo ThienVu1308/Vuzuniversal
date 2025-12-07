@@ -29,6 +29,26 @@ do
     end
 end
 
+-- tween safety: coerce NumberSequence properties when goals use plain numbers
+do
+    local TweenService = game:GetService("TweenService")
+    local originalTweenCreate = TweenService.Create
+    pcall(function()
+        hookfunction(TweenService.Create, function(self, instance, tweenInfo, goals)
+            local fixed = {}
+            for prop, value in pairs(goals) do
+                local current = instance and instance[prop]
+                if typeof(current) == "NumberSequence" and type(value) == "number" then
+                    fixed[prop] = NumberSequence.new(value)
+                else
+                    fixed[prop] = value
+                end
+            end
+            return originalTweenCreate(self, instance, tweenInfo, fixed)
+        end)
+    end)
+end
+
 -- icons used in tabs/elements
 WindUI.Creator.AddIcons("solar", {
     ["CheckSquareBold"] = "rbxassetid://132438947521974",
@@ -48,8 +68,8 @@ local Red = Color3.fromHex("#EF4F1D")
 
 -- window
 local Window = WindUI:CreateWindow({
-    Title = "Vuzez || Universal",
-    Folder = "Vuzez",
+    Title = "Unstability || Universal",
+    Folder = "Unstability",
     IconSize = 44,
     NewElements = true,
     HideSearchBar = false,
@@ -95,7 +115,7 @@ local HomeTab = Window:Tab({
 })
 
 HomeTab:Section({
-    Title = "Script made by ThienVuzx",
+    Title = "Script made by error_v5",
     TextSize = 16,
 })
 
@@ -140,8 +160,17 @@ MainTab:Toggle({
                     sethiddenproperty(player, "SimulationRadius", 112412400000)
                     sethiddenproperty(player, "MaxSimulationRadius", 112412400000)
                     for _, inst in ipairs(workspace:GetDescendants()) do
-                        if inst.ClassName == "Humanoid" and inst.Parent.Name ~= player.Name then
-                            inst.Health = 0
+                        if inst.ClassName == "Humanoid" and inst.Parent then
+                            local char = inst.Parent
+                            if char.Name ~= player.Name then
+                                -- guard rigs missing expected parts (avoids VFX errors) and require CDValues folder
+                                local hasCoreParts = char:FindFirstChild("HumanoidRootPart") or char:FindFirstChild("Head")
+                                local hasLeft = char:FindFirstChild("Aleft") or char:FindFirstChild("Left Arm") or char:FindFirstChild("LeftHand")
+                                local hasCD = char:FindFirstChild("CDValues")
+                                if hasCoreParts and hasLeft and hasCD then
+                                    inst.Health = 0
+                                end
+                            end
                         end
                     end
                 end)
@@ -434,5 +463,3 @@ task.spawn(function()
         task.wait(1)
     end
 end)
-
-Window:SelectTab(HomeTab)
