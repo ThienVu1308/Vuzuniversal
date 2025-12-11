@@ -29,6 +29,16 @@ do
     end
 end
 
+-- PATCH: Fix WindUI Icons crash (missing .Icons table in 'solar' pack)
+if WindUI and WindUI.Creator and WindUI.Creator.Icons and WindUI.Creator.Icons.Icons then
+    local solar = WindUI.Creator.Icons.Icons["solar"]
+    if solar then
+        if not solar.Icons then solar.Icons = {} end
+        if not solar.Spritesheets then solar.Spritesheets = {} end
+    end
+end
+
+
 -- compatibility: add dummy :Connect on RBXScriptConnection to avoid crashes in third-party modules
 do
     local tmp = game:GetService("RunService").Heartbeat:Connect(function() end)
