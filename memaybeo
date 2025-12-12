@@ -413,6 +413,136 @@ MainTab:Toggle({
     end,
 })
 
+
+MainTab:Space()
+
+-- NPC Dropdown Logic
+local npcCache = {}
+local npcNames = {}
+local npcDropdown = nil
+
+local function refreshNPCs()
+    table.clear(npcCache)
+    table.clear(npcNames)
+    
+    local counts = {}
+    for _, v in ipairs(workspace:GetDescendants()) do
+        if v:IsA("Humanoid") and v.Parent and v.Parent ~= player.Character then
+            local char = v.Parent
+            local root = char:FindFirstChild("HumanoidRootPart") or char:FindFirstChild("Head")
+            if root then
+                local name = char.Name
+                -- handle duplicates
+                if counts[name] then
+                    counts[name] = counts[name] + 1
+                    name = name .. " [" .. counts[name] .. "]"
+                else
+                    counts[name] = 1
+                end
+                
+                npcCache[name] = root
+                table.insert(npcNames, name)
+            end
+        end
+    end
+    table.sort(npcNames)
+    if npcDropdown then
+        npcDropdown:Refresh(npcNames)
+    end
+end
+
+MainTab:Button({
+    Title = "Refresh NPC List",
+    Icon = "solar:SolarSquareTransferHorizontalBold",
+    Callback = refreshNPCs
+})
+
+npcDropdown = MainTab:Dropdown({
+    Title = "Select NPC to TP",
+    Multi = false,
+    Required = false,
+    Values = {},
+    Callback = function(value)
+        if type(value) == "table" then value = value[1] end -- handle multi-select return just in case
+        if not value then return end
+        
+        local targetPart = npcCache[value]
+        if targetPart then
+            player.Character.HumanoidRootPart.CFrame = targetPart.CFrame * CFrame.new(0, 3, 0)
+            notify("TP NPC", "Teleported to " .. value)
+        else
+            notify("TP NPC", "Target not found (refresh list?)")
+        end
+    end,
+})
+
+
+
+MainTab:Space()
+
+-- Mob Dropdown Logic (filtered by CDValues)
+local mobCache = {}
+local mobNames = {}
+local mobDropdown = nil
+
+local function refreshMobs()
+    table.clear(mobCache)
+    table.clear(mobNames)
+    
+    local counts = {}
+    for _, v in ipairs(workspace:GetDescendants()) do
+        if v:IsA("Humanoid") and v.Parent and v.Parent ~= player.Character then
+            local char = v.Parent
+            -- Mob filter: Must have CDValues folder (matches kill script logic)
+            if char:FindFirstChild("CDValues") then
+                local root = char:FindFirstChild("HumanoidRootPart") or char:FindFirstChild("Head")
+                if root then
+                    local name = char.Name
+                    -- handle duplicates
+                    if counts[name] then
+                        counts[name] = counts[name] + 1
+                        name = name .. " [" .. counts[name] .. "]"
+                    else
+                        counts[name] = 1
+                    end
+                    
+                    mobCache[name] = root
+                    table.insert(mobNames, name)
+                end
+            end
+        end
+    end
+    table.sort(mobNames)
+    if mobDropdown then
+        mobDropdown:Refresh(mobNames)
+    end
+end
+
+MainTab:Button({
+    Title = "Refresh Mob List",
+    Icon = "solar:SolarSquareTransferHorizontalBold",
+    Callback = refreshMobs
+})
+
+mobDropdown = MainTab:Dropdown({
+    Title = "Select Mob to TP",
+    Multi = false,
+    Required = false,
+    Values = {},
+    Callback = function(value)
+        if type(value) == "table" then value = value[1] end
+        if not value then return end
+        
+        local targetPart = mobCache[value]
+        if targetPart then
+            player.Character.HumanoidRootPart.CFrame = targetPart.CFrame * CFrame.new(0, 3, 0)
+            notify("TP Mob", "Teleported to " .. value)
+        else
+            notify("TP Mob", "Mob not found (refresh list?)")
+        end
+    end,
+})
+
 -- Player tab
 local PlayerTab = Window:Tab({
     Title = "Player",
