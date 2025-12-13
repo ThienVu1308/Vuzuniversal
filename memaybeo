@@ -178,13 +178,13 @@ local Red = Color3.fromHex("#EF4F1D")
 
 -- window
 local Window = WindUI:CreateWindow({
-    Title = "Unstability || Universal",
-    Folder = "Unstability",
+    Title = "Vuzez || Universal",
+    Folder = "idk",
     IconSize = 44,
     NewElements = true,
     HideSearchBar = false,
     OpenButton = {
-        Title = "Open Unstability UI",
+        Title = "Open Vuz UI",
         CornerRadius = UDim.new(1, 0),
         StrokeThickness = 3,
         Enabled = true,
