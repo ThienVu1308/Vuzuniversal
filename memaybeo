@@ -216,6 +216,62 @@ local autoM1 = false
 local autoSkills = false
 local selectedSkills = {"E", "R", "T", "Y", "H", "G", "Q"}
 
+-- Config System
+-- Config System
+local CONFIG_FOLDER = "Vuz"
+local CONFIG_FILE = CONFIG_FOLDER .. "/config.json"
+local httpService = game:GetService("HttpService")
+
+if not isfolder(CONFIG_FOLDER) then
+    makefolder(CONFIG_FOLDER)
+end
+
+local function saveSettings(silent)
+    local data = {
+        tpDistance = tpDistance,
+        tpDirection = tpDirection,
+        selectedSkills = selectedSkills,
+        targetWalkspeed = targetWalkspeed,
+        targetJump = targetJump,
+        noStun = noStun,
+        instantInteract = instantInteract,
+        autoM1 = autoM1,
+        autoSkills = autoSkills
+    }
+    local success, encoded = pcall(function() return httpService:JSONEncode(data) end)
+    if success then
+        writefile(CONFIG_FILE, encoded)
+        if not silent then
+            notify("Config", "Settings saved successfully.")
+        end
+    else
+        if not silent then
+            notify("Config", "Failed to encode settings.")
+        end
+    end
+end
+
+local function loadSettings()
+    if not isfile(CONFIG_FILE) then
+        notify("Config", "No saved config found.")
+        return
+    end
+    local success, decoded = pcall(function() return httpService:JSONDecode(readfile(CONFIG_FILE)) end)
+    if success and decoded then
+        if decoded.tpDistance then tpDistance = decoded.tpDistance end
+        if decoded.tpDirection then tpDirection = decoded.tpDirection end
+        if decoded.selectedSkills then selectedSkills = decoded.selectedSkills end
+        if decoded.targetWalkspeed then targetWalkspeed = decoded.targetWalkspeed end
+        if decoded.targetJump then targetJump = decoded.targetJump end
+        if decoded.noStun ~= nil then noStun = decoded.noStun end
+        if decoded.instantInteract ~= nil then instantInteract = decoded.instantInteract end
+        notify("Config", "Settings loaded.")
+    else
+        notify("Config", "Failed to load settings.")
+    end
+end
+
+
 -- Global Mob Cache Logic
 local mobCache = {}
 local mobNames = {}
@@ -281,7 +337,7 @@ local HomeTab = Window:Tab({
 })
 
 HomeTab:Section({
-    Title = "Script made by error_v5",
+    Title = "Script made by Vuzz",
     TextSize = 16,
 })
 
@@ -787,6 +843,32 @@ SettingsTab:Dropdown({
         selectedSkills = val
     end
 })
+
+SettingsTab:Space()
+
+SettingsTab:Button({
+    Title = "Save Settings",
+    Icon = "solar:FolderWithFilesBold",
+    Callback = saveSettings
+})
+
+SettingsTab:Button({
+    Title = "Load Settings",
+    Icon = "solar:SolarSquareTransferHorizontalBold",
+    Callback = loadSettings
+})
+
+-- Auto Load Logic
+local ok, err = pcall(loadSettings)
+if not ok then warn("AutoLoad error:", err) end
+
+-- Auto Save Logic
+task.spawn(function()
+    while true do
+        task.wait(10)
+        saveSettings(true) -- silent save
+    end
+end)
 
 -- Player tab
 local PlayerTab = Window:Tab({
